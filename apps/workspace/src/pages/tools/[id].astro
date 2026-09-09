@@ -1,0 +1,11 @@
+---
+import { TOOL_CATALOG } from '@domos/catalog';
+import Workspace from '../../layouts/Workspace.astro';
+import ToolWorkspace from '../../components/ToolWorkspace';
+export function getStaticPaths() { return TOOL_CATALOG.map((tool) => ({ params: { id: tool.id }, props: { tool } })); }
+const { tool } = Astro.props;
+---
+<Workspace tool={tool}>
+  <ToolWorkspace id={tool.id} client:load />
+  <noscript><div class="warning">This tool requires JavaScript to execute in your browser. No inputs are submitted when JavaScript is disabled.</div></noscript>
+</Workspace>

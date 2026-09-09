@@ -1,0 +1,7 @@
+---
+import { SPONSORSHIP } from '../config';
+// This component reserves layout only. Enabling real advertising needs a separate
+// reviewed integration with publisher approval and a jurisdiction-aware consent path.
+if (SPONSORSHIP.enabled) throw new Error('Advertising integration is not approved or implemented.');
+---
+{SPONSORSHIP.showReservedSlot && <aside class="reserved-slot" aria-label="Reserved sponsorship space">Reserved sponsorship space / no advertising active</aside>}

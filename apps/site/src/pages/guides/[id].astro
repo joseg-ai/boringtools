@@ -1,0 +1,24 @@
+---
+import { CATEGORIES, TOOL_CATALOG } from '@domos/catalog';
+import Site from '../../layouts/Site.astro';
+import { GUIDES } from '../../data/guides';
+import { WORKSPACE_ORIGIN } from '../../config';
+export function getStaticPaths() { return TOOL_CATALOG.map((tool) => ({ params: { id: tool.id }, props: { tool } })); }
+const { tool } = Astro.props;
+const guide = GUIDES[tool.id];
+const related = TOOL_CATALOG.filter((entry) => entry.category === tool.category && entry.id !== tool.id);
+---
+<Site title={tool.guideTitle} description={tool.description}>
+  <div class="container"><header class="page-heading"><p class="eyebrow"><a href="/guides/">Practical guides</a> / {CATEGORIES[tool.category]}</p><h1>{tool.guideTitle}</h1><p class="lede">{guide.intro}</p></header>
+    <div class="article-grid"><article class="article"><h2>How to use the workspace</h2><ol>{guide.steps.map((step) => <li>{step}</li>)}</ol>
+      <h2>A concrete starting point</h2><pre>{guide.example}</pre><p>{guide.exampleNote}</p>
+      <h2>Read the result carefully</h2><p>{guide.interpretation}</p>
+      <h2>Common mistakes to avoid</h2><ul>{guide.pitfalls.map((pitfall) => <li>{pitfall}</li>)}</ul>
+      <h2>Limits &amp; privacy</h2><p>{guide.limits}</p><div class="callout"><strong>{tool.privacyLabel}</strong><p>{tool.privacyDetail}</p><a href="/privacy/">Read the full privacy boundaries</a></div>
+      <a class="button primary" href={`${WORKSPACE_ORIGIN}${tool.toolPath}`}>Open {tool.title} &rarr;</a>
+    </article><aside class="guide-aside"><p class="eyebrow">Use the tool</p><h2 style="font-size:1.5rem">{tool.title}</h2><p>{tool.description}</p><a class="button primary" href={`${WORKSPACE_ORIGIN}${tool.toolPath}`}>Open workspace &rarr;</a>
+      <p style="margin-top:1rem">{tool.mode === 'local' ? 'Local computation. No input uploads.' : 'Explicit live request. Target leaves your browser.'} No workspace ads or analytics.</p>
+      {related.length > 0 && <><h3>Related guides</h3>{related.map((entry) => <a href={entry.guidePath}>{entry.title}</a>)}</>}<a href="/guides/">All practical guides &rarr;</a>
+    </aside></div>
+  </div>
+</Site>

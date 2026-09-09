@@ -1,0 +1,59 @@
+---
+import { CATEGORIES, TOOL_CATALOG, type ToolMetadata } from '@domos/catalog';
+import Theme from '../components/Theme.astro';
+import { API_ORIGIN, SITE_ORIGIN } from '../config';
+import '../styles/global.css';
+interface Props { tool?: ToolMetadata; title?: string; }
+const { tool, title = 'Workspaces' } = Astro.props;
+const siteOrigin = SITE_ORIGIN;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={tool?.description ?? 'Sixteen focused IT tools. Local processing where possible, explicit live diagnostics where needed.'} />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, follow" />
+    <meta name="domos-processing-mode" content={tool?.mode ?? 'local'} />
+    {tool?.mode === 'live' && <meta name="domos-api-origin" content={API_ORIGIN} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{tool?.title ?? title} | Domos Tools</title>
+  </head>
+  <body>
+    <a href="#main" class="skip">Skip to tool</a>
+    <header class="topbar">
+      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">d.</span>Domos Tools</a>
+      <div class="toplinks"><a class="desktop-link" href={`${siteOrigin}/tools/`}>Directory</a><a href={`${siteOrigin}/privacy/`}>Privacy</a><Theme /></div>
+    </header>
+    <div class="app-grid">
+      <aside class="sidebar" aria-label="Tool navigation">
+        <details open>
+          <summary>Browse all 16 tools</summary>
+          <nav aria-label="Tools by category">
+            {Object.entries(CATEGORIES).map(([category, label]) => <div class="nav-group">
+              <h2><a href={`${siteOrigin}/tools/#${category}`}>{label}</a></h2>
+              {TOOL_CATALOG.filter((entry) => entry.category === category).map((entry) =>
+                <a href={entry.toolPath} aria-current={tool?.id === entry.id ? 'page' : undefined}>{entry.title}</a>)}
+            </div>)}
+          </nav>
+        </details>
+      </aside>
+      <main id="main" class="workspace-main">
+        {tool && <header>
+          <p class="eyebrow">{CATEGORIES[tool.category]} / Workspace</p>
+          <h1>{tool.title}</h1>
+          <p class="intro">{tool.description}</p>
+          <a href={`${siteOrigin}${tool.guidePath}`}>Read the practical guide &rarr;</a>
+          <div class="privacy"><strong>{tool.privacyLabel}</strong><p>{tool.privacyDetail} No ads or analytics.</p></div>
+        </header>}
+        <slot />
+      </main>
+    </div>
+    <footer class="footer"><span>Domos Tools / Made for the work between the big tasks.</span><span>Only theme preference is saved. <a href={`${siteOrigin}/privacy/`}>Privacy &amp; limitations</a></span></footer>
+    <script>
+      const menu = document.querySelector<HTMLDetailsElement>('.sidebar details');
+      if (menu && matchMedia('(max-width: 850px)').matches) menu.open = false;
+    </script>
+  </body>
+</html>

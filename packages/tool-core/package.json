@@ -1,0 +1,25 @@
+{
+  "name": "@domos/tool-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./src/index.ts",
+    "./workers": "./src/workers/index.ts",
+    "./workers/entry": "./src/workers/entry.ts"
+  },
+  "scripts": { "check": "tsc --project tsconfig.json" },
+  "dependencies": {
+    "@domos/catalog": "0.1.0",
+    "@domos/contracts": "0.1.0",
+    "@noble/hashes": "2.4.0",
+    "@scure/bip39": "2.4.0",
+    "cron-parser": "5.10.0",
+    "diff": "9.0.0",
+    "ipaddr.js": "2.5.0",
+    "lossless-json": "4.3.1",
+    "postal-mime": "3.0.0",
+    "yaml": "2.9.0"
+  }
+}

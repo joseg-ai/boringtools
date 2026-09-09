@@ -1,0 +1,39 @@
+---
+import Site from '../layouts/Site.astro';
+import Directory from '../components/Directory';
+import Sponsorship from '../components/Sponsorship.astro';
+import { WORKSPACE_ORIGIN } from '../config';
+---
+<Site title="Less friction. More figuring things out." description="An original, focused toolbox for IT work: subnets, DNS, structured data, encoding, security, and time. Thirteen local tools and three explicit live diagnostics.">
+  <div class="container">
+    <section class="hero">
+      <div><p class="eyebrow">For the work between the big tasks</p><h1>Less friction.<br /><span>More figured out.</span></h1>
+        <p class="lede">Split a subnet. Untangle a token. Make sense of that header. Sixteen focused tools that help you finish the small things and move on.</p>
+        <div class="actions"><a class="button primary" href="#toolbox">Find your tool &darr;</a><a class="button" href={`${WORKSPACE_ORIGIN}/tools/ipv4-subnet-planner/`}>Open subnet planner &rarr;</a></div>
+        <p class="hero-note">No sign-up. No input history. Clear local and live labels.</p>
+      </div>
+      <div class="console" role="img" aria-label="Illustration of a /24 network divided into two /25 allocations; not a live calculation">
+        <div class="console-head"><span>DOMOS / NETWORK WORKSPACE</span><span>LOCAL</span></div><div class="console-body">
+          <div class="console-label"><span>ONE NETWORK. ROOM TO THINK.</span><span>01 / 16</span></div>
+          <svg viewBox="0 0 420 242" aria-hidden="true">
+            <path class="console-path" d="M210 68v42H105v31m105-31h105v31" />
+            <rect class="console-node" x="114" y="14" width="192" height="58" rx="7" /><text x="210" y="39" text-anchor="middle">10.42.8.0/24</text><text x="210" y="57" class="node-small" text-anchor="middle">256 addresses</text>
+            <rect class="console-node" x="12" y="140" width="190" height="75" rx="7" /><text x="107" y="167" text-anchor="middle">10.42.8.0/25</text><text x="107" y="190" class="node-small" text-anchor="middle">EDGE / 128 ADDRESSES</text>
+            <rect class="console-node alt" x="218" y="140" width="190" height="75" rx="7" /><text x="313" y="167" text-anchor="middle">10.42.8.128/25</text><text x="313" y="190" class="node-small" text-anchor="middle">LAB / 128 ADDRESSES</text>
+          </svg>
+          <div class="console-foot"><span>Illustrative allocation</span><span>Split / join / annotate</span></div>
+        </div>
+      </div>
+    </section>
+    <div class="metrics" aria-label="Release overview"><div class="metric"><strong>16</strong><span>purpose-built tools</span></div><div class="metric"><strong>13</strong><span>run in your browser</span></div><div class="metric"><strong>03</strong><span>explicit live diagnostics</span></div><div class="metric"><strong>00</strong><span>accounts to create</span></div></div>
+    <section class="section" id="toolbox"><div class="section-header"><div><p class="eyebrow">The toolbox</p><h2>A useful place to start.</h2><p>Choose the job, not a workflow. Every tool has its own workspace and a practical guide.</p></div><a href="/tools/">Full directory &rarr;</a></div>
+      <Directory workspaceOrigin={WORKSPACE_ORIGIN} client:load />
+    </section>
+    <section class="principles" aria-label="Product principles">
+      <div><span class="number">01 / LOCAL WHERE IT COUNTS</span><h3>Your paste stays put.</h3><p>Local tools compute in browser memory. No input uploads, automatic history, or workspace analytics.</p></div>
+      <div><span class="number">02 / LIVE, NOT MYSTERIOUS</span><h3>Know what leaves.</h3><p>DNS and HTTP inspections clearly identify the submitted target and preserve partial results and failure reasons.</p></div>
+      <div><span class="number">03 / BUILT FOR REAL WORK</span><h3>Useful, not overconfident.</h3><p>A decoded token is unverified. A missing DNS record is not a server error. The details stay visible.</p></div>
+    </section>
+    <section class="section"><Sponsorship /><div class="closing"><h2>Good tools should explain their limits, too.</h2><a class="button" href="/guides/">Explore the guides &rarr;</a></div></section>
+  </div>
+</Site>

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "" },
+    "staticAppsLocation": { "value": "" },
+    "registryName": { "value": "" },
+    "pullIdentityName": { "value": "" },
+    "environmentName": { "value": "" },
+    "apiAppName": { "value": "" },
+    "siteAppName": { "value": "" },
+    "workspaceAppName": { "value": "" },
+    "imageRepository": { "value": "diagnostics" },
+    "imageDigest": { "value": "" },
+    "staticAppsSku": { "value": "Standard" },
+    "corsOrigins": { "value": ["https://tools.domosdigial.com"] },
+    "publicApiOrigin": { "value": "https://api.domosdigial.com" },
+    "minReplicas": { "value": 0 },
+    "maxReplicas": { "value": 3 },
+    "cpuCores": { "value": "0.25" },
+    "httpConcurrency": { "value": 4 },
+    "apiCertificateId": { "value": "" }
+  }
+}

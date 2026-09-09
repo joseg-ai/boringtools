@@ -1,0 +1,19 @@
+{
+  "name": "@domos/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./src/index.ts",
+    "./local": "./src/local.ts",
+    "./subnet": "./src/subnet.ts",
+    "./execution": "./src/execution.ts",
+    "./api": "./src/api.ts"
+  },
+  "scripts": { "check": "tsc --project tsconfig.json" },
+  "dependencies": {
+    "@domos/catalog": "0.1.0",
+    "zod": "4.5.4"
+  }
+}

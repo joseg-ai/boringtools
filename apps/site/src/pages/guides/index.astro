@@ -1,0 +1,9 @@
+---
+import { CATEGORIES, TOOL_CATALOG } from '@domos/catalog';
+import Site from '../../layouts/Site.astro';
+---
+<Site title="Practical guides" description="Original, task-focused guides for every Domos tool. Understand the inputs, interpret results and recognize each tool's limits.">
+  <div class="container"><header class="page-heading"><p class="eyebrow">The field guide</p><h1>A little context goes a long way.</h1><p class="lede">Concrete starting points, useful distinctions and honest limits for all sixteen tools.</p></header>
+    {Object.entries(CATEGORIES).map(([id, title]) => <section class="section" id={id}><h2>{title}</h2><div class="tool-grid">{TOOL_CATALOG.filter((tool) => tool.category === id).map((tool) => <article class="tool-card"><span class:list={['badge', tool.mode]}>{tool.mode.toUpperCase()}</span><h3><a href={tool.guidePath}>{tool.guideTitle}</a></h3><p>{tool.description}</p><a href={tool.guidePath}>Read guide &rarr;</a></article>)}</div></section>)}
+  </div>
+</Site>

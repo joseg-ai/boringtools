@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "packages/catalog/src/**/*.ts",
+    "packages/contracts/src/**/*.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
+}

@@ -1,0 +1,74 @@
+name: Application CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ASTRO_TELEMETRY_DISABLED: '1'
+      PUBLIC_API_ORIGIN: https://api.domosdigial.com
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:e2e
+      - run: npm audit --omit=dev --workspace=@domos/diagnostics --include-workspace-root=false --audit-level=high
+      - name: Check static deployment boundaries
+        shell: pwsh
+        run: .\infra\scripts\Test-StaticArtifacts.ps1 -ApiOrigin $env:PUBLIC_API_ORIGIN
+      - name: Compile and lint Bicep without Azure login
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          az bicep build --file .\infra\registry-bootstrap.bicep --stdout | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          az bicep build --file .\infra\main.bicep --stdout | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the real API image (no push)
+        run: docker build --platform linux/amd64 --file infra/containers/diagnostics.Dockerfile --tag domos-diagnostics:ci .
+      - name: Require health and non-root read-only operation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $id = docker run --detach --read-only --cap-drop=ALL --security-opt=no-new-privileges --memory=512m --cpus=0.25 --env CORS_ORIGINS=https://tools.domosdigial.com domos-diagnostics:ci
+          if ($LASTEXITCODE -ne 0) { throw 'Container did not start.' }
+          try {
+            $healthy = $false
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              Start-Sleep -Seconds 2
+              $status = docker inspect --format '{{.State.Health.Status}}' $id
+              if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect the test container.' }
+              if ($status -eq 'healthy') { $healthy = $true; break }
+              if ($status -eq 'unhealthy') { throw 'Real diagnostics health endpoint is unhealthy.' }
+            }
+            if (-not $healthy) { throw 'Real API never became ready; a scaffold is not deployable.' }
+            docker exec $id node -e "if(process.getuid()===0)process.exit(1)"
+            if ($LASTEXITCODE -ne 0) { throw 'API is running as root.' }
+            docker stats --no-stream --format 'CPU={{.CPUPerc}} Memory={{.MemUsage}}' $id
+            docker stop --time 30 $id | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Could not stop container gracefully.' }
+            $exitCode = docker inspect --format '{{.State.ExitCode}}' $id
+            if ($exitCode -ne '0') { throw "SIGTERM shutdown exited $exitCode; API must drain and close cleanly." }
+          } finally {
+            docker rm --force $id | Out-Null
+          }

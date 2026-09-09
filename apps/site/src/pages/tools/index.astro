@@ -1,0 +1,8 @@
+---
+import Site from '../../layouts/Site.astro';
+import Directory from '../../components/Directory';
+import { WORKSPACE_ORIGIN } from '../../config';
+---
+<Site title="The complete toolbox" description="Search and filter all sixteen Domos Tools by category and processing location. Network, security, data, encoding and scheduling tools.">
+  <div class="container"><header class="page-heading"><p class="eyebrow">The directory / 16 tools</p><h1>Find the right small tool.</h1><p class="lede">Filter by the task at hand, or choose tools that run entirely in your browser.</p></header><section class="section" style="padding-top:1rem"><Directory workspaceOrigin={WORKSPACE_ORIGIN} client:load /><noscript><p>Search requires JavaScript. All tool and guide links remain available below.</p></noscript></section></div>
+</Site>

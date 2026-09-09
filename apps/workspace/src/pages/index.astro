@@ -1,0 +1,13 @@
+---
+import { TOOL_CATALOG } from '@domos/catalog';
+import Workspace from '../layouts/Workspace.astro';
+---
+<Workspace>
+  <p class="eyebrow">A quieter kind of toolbox</p>
+  <h1>What are you working on?</h1>
+  <p class="intro">Pick a tool. No account, no saved input history, no distractions. Local tools process in your browser; live tools query only when you ask.</p>
+  <div class="tool-cards">{TOOL_CATALOG.map((tool) => <a class="panel tool-card" href={tool.toolPath}>
+    <span class:list={['badge', tool.mode]}>{tool.mode === 'local' ? 'LOCAL / BROWSER' : 'LIVE / API'}</span>
+    <h2>{tool.title}</h2><p>{tool.description}</p><span>Open workspace &rarr;</span>
+  </a>)}</div>
+</Workspace>

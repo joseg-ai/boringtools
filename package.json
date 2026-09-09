@@ -1,0 +1,42 @@
+{
+  "name": "domos-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "packageManager": "npm@11.12.0",
+  "workspaces": [
+    "packages/catalog",
+    "packages/contracts",
+    "packages/tool-core",
+    "apps/site",
+    "apps/workspace",
+    "apps/diagnostics"
+  ],
+  "scripts": {
+    "dev:site": "npm run dev --workspace=@domos/site",
+    "dev:workspace": "npm run dev --workspace=@domos/workspace",
+    "dev:api": "npm run dev --workspace=@domos/diagnostics",
+    "check:foundation": "tsc --project tsconfig.foundation.json",
+    "check": "npm run check --workspaces --if-present",
+    "test": "vitest run",
+    "test:foundation": "vitest run packages/catalog packages/contracts",
+    "test:e2e": "tsc --project tests/e2e/tsconfig.json && playwright test",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}

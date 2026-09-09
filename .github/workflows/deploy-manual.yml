@@ -1,0 +1,143 @@
+name: Approved manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: 'Previously built, audited ACR manifest: sha256:<64 lowercase hex>'
+        required: true
+        type: string
+      authorization:
+        description: 'Type DEPLOY after reviewing this commit and image; GitHub production reviewers must also approve'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: domos-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+      AZURE_ACR_LOGIN_SERVER: ${{ vars.AZURE_ACR_LOGIN_SERVER }}
+      AZURE_API_APP_NAME: ${{ vars.AZURE_API_APP_NAME }}
+      AZURE_SITE_APP_NAME: ${{ vars.AZURE_SITE_APP_NAME }}
+      AZURE_WORKSPACE_APP_NAME: ${{ vars.AZURE_WORKSPACE_APP_NAME }}
+      PUBLIC_API_ORIGIN: ${{ vars.PUBLIC_API_ORIGIN }}
+      CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+      ASTRO_TELEMETRY_DISABLED: '1'
+      IMAGE_DIGEST: ${{ inputs.image_digest }}
+      AUTHORIZATION: ${{ inputs.authorization }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no'
+    steps:
+      - name: Fail closed on absent release configuration
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REF -cne "refs/heads/$env:DEFAULT_BRANCH") { throw 'Release only the protected default branch.' }
+          if ($env:AUTHORIZATION -cne 'DEPLOY') { throw 'Explicit release authorization is missing.' }
+          foreach ($name in @('AZURE_CLIENT_ID', 'AZURE_TENANT_ID', 'AZURE_SUBSCRIPTION_ID')) {
+            if ([Environment]::GetEnvironmentVariable($name) -notmatch '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$') { throw "Missing or invalid $name." }
+          }
+          foreach ($name in @('AZURE_RESOURCE_GROUP', 'AZURE_ACR_NAME', 'AZURE_API_APP_NAME', 'AZURE_SITE_APP_NAME', 'AZURE_WORKSPACE_APP_NAME')) {
+            if ([Environment]::GetEnvironmentVariable($name) -notmatch '^[a-zA-Z0-9][a-zA-Z0-9_.()-]{1,89}$') { throw "Missing or invalid $name." }
+          }
+          if ($env:AZURE_SITE_APP_NAME -eq $env:AZURE_WORKSPACE_APP_NAME) { throw 'The two SWAs must be different resources.' }
+          if ($env:AZURE_ACR_LOGIN_SERVER -notmatch '^[a-z0-9][a-z0-9.-]*\.azurecr\.io$') { throw 'Missing explicit ACR login server output.' }
+          if ($env:IMAGE_DIGEST -cnotmatch '^sha256:[0-9a-f]{64}$' -or $env:IMAGE_DIGEST -eq ('sha256:' + ('0' * 64))) { throw 'A real immutable image digest is required.' }
+          if ($env:PUBLIC_API_ORIGIN -cnotmatch '^https://[a-z0-9][a-z0-9.-]*[a-z0-9]$') { throw 'Set an exact HTTPS PUBLIC_API_ORIGIN.' }
+          $origins = @($env:CORS_ORIGINS -split ',')
+          if ($origins.Count -gt 4) { throw 'At most four approved workspace origins are supported.' }
+          foreach ($origin in $origins) {
+            if ($origin -cnotmatch '^https://[a-z0-9][a-z0-9.-]*[a-z0-9]$') { throw 'Set exact HTTPS CORS_ORIGINS, without wildcard or spaces.' }
+          }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build --workspace=@domos/site
+      - run: npm run build --workspace=@domos/workspace
+      - run: .\infra\scripts\Test-StaticArtifacts.ps1 -ApiOrigin $env:PUBLIC_API_ORIGIN
+      - uses: azure/login@4c03e4685fe81df2c50d5714c7d93cf39d8deb7f # v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+      - name: Verify existing image and targets; capture masked upload tokens
+        id: targets
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $server = az acr show --subscription $env:AZURE_SUBSCRIPTION_ID --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_ACR_NAME --query loginServer --output tsv --only-show-errors
+          if ($LASTEXITCODE -ne 0 -or $server -cne $env:AZURE_ACR_LOGIN_SERVER) { throw 'Selected ACR does not match its approved login server.' }
+          $digest = az acr repository show --subscription $env:AZURE_SUBSCRIPTION_ID --name $env:AZURE_ACR_NAME --image "diagnostics@$env:IMAGE_DIGEST" --query digest --output tsv --only-show-errors
+          if ($LASTEXITCODE -ne 0 -or $digest -cne $env:IMAGE_DIGEST) { throw 'Approved image does not exist in the selected registry.' }
+          az containerapp show --subscription $env:AZURE_SUBSCRIPTION_ID --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_API_APP_NAME --query name --output none --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'Bootstrap infrastructure is absent; this workflow does not provision it.' }
+          foreach ($target in @(@('site', $env:AZURE_SITE_APP_NAME), @('workspace', $env:AZURE_WORKSPACE_APP_NAME))) {
+            $token = az staticwebapp secrets list --subscription $env:AZURE_SUBSCRIPTION_ID --resource-group $env:AZURE_RESOURCE_GROUP --name $target[1] --query properties.apiKey --output tsv --only-show-errors
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($token)) { throw "Missing $($target[0]) deployment token or scoped permission." }
+            Write-Output "::add-mask::$token"
+            "$($target[0])_token=$token" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
+      - name: Update existing API to the approved immutable image
+        run: |
+          $ErrorActionPreference = 'Stop'
+          az containerapp update --subscription $env:AZURE_SUBSCRIPTION_ID --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_API_APP_NAME --image "$env:AZURE_ACR_LOGIN_SERVER/diagnostics@$env:IMAGE_DIGEST" --set-env-vars "CORS_ORIGINS=$env:CORS_ORIGINS" "PUBLIC_API_ORIGIN=$env:PUBLIC_API_ORIGIN" --output none --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'API revision update failed; static content was not uploaded.' }
+          $ready = $false
+          for ($attempt = 0; $attempt -lt 24; $attempt++) {
+            $app = az containerapp show --subscription $env:AZURE_SUBSCRIPTION_ID --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_API_APP_NAME --output json --only-show-errors | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect the requested API revision.' }
+            if ($app.properties.template.containers[0].image -cne "$env:AZURE_ACR_LOGIN_SERVER/diagnostics@$env:IMAGE_DIGEST") { throw 'API image changed during release.' }
+            if ($app.properties.latestRevisionName -and $app.properties.latestReadyRevisionName -eq $app.properties.latestRevisionName) { $ready = $true; break }
+            Start-Sleep -Seconds 5
+          }
+          if (-not $ready) { throw 'The requested API revision is not ready; static content was not uploaded.' }
+          $response = Invoke-RestMethod -Uri "$env:PUBLIC_API_ORIGIN/healthz" -TimeoutSec 90
+          if ($response.service -ne 'domos-diagnostics' -or $response.status -ne 'ok') { throw 'API readiness failed; static content was not uploaded.' }
+      - name: Upload public site (no linked API, no PR comments)
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1
+        with:
+          action: upload
+          azure_static_web_apps_api_token: ${{ steps.targets.outputs.site_token }}
+          app_location: apps/site/dist
+          api_location: ''
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+          production_branch: ${{ github.event.repository.default_branch }}
+      - name: Upload ad-free workspace separately
+        uses: Azure/static-web-apps-deploy@4d27395796ac319302594769cfe812bd207490b1
+        with:
+          action: upload
+          azure_static_web_apps_api_token: ${{ steps.targets.outputs.workspace_token }}
+          app_location: apps/workspace/dist
+          api_location: ''
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+          production_branch: ${{ github.event.repository.default_branch }}
